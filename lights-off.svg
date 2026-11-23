@@ -1,0 +1,4 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 280" preserveAspectRatio="none">
+  <defs><radialGradient id="housing"><stop offset=".68" stop-color="#10191e"/><stop offset=".85" stop-color="#121d22"/><stop offset="1" stop-color="#121d22" stop-opacity="0"/></radialGradient></defs>
+  <g fill="url(#housing)"><ellipse cx="279" cy="15" rx="53" ry="17" transform="rotate(15 279 15)"/><ellipse cx="438" cy="51" rx="37" ry="13" transform="rotate(15 438 51)"/></g>
+</svg>

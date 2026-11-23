@@ -1,202 +1,69 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Borisenko A - about</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="media/img/icons8-icon-96.png">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;300&family=Roboto+Slab:wght@369&display=swap"
-          rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artem Borisenko — Manufacturing ERP</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+<script src="production.js" defer></script>
 </head>
 <body>
-<main>
+<div class="scene" aria-hidden="true"><div class="scene-image"><div class="lamp-cutout" aria-hidden="true"></div><canvas id="clock-face" width="260" height="136"></canvas></div></div>
+<header class="bar"><div class="frame top"><a href="#profile">ARTEM BORISENKO</a><a href="#workspace">ERP DEMO <span aria-hidden="true">↘</span></a></div></header>
+<main class="frame layout">
+<aside id="profile" class="profile">
+<div class="profile-anchor">
+<div class="profile-summary">
+<img src="portrait.jpg" alt="Artem Borisenko" width="84" height="84">
+<h1>Artem Borisenko</h1>
+<p><span id="age">31</span> years old</p>
+<p><span data-tenure>Five</span> years engineering ERP for factories</p>
+<button class="profile-trigger" type="button" aria-controls="profile-card" aria-expanded="false" aria-label="Expand profile"><span class="expand-label">expand</span> <span aria-hidden="true">↗</span></button>
+</div>
+<section id="profile-card" aria-labelledby="card-name" hidden>
+<button class="card-close" type="button" aria-label="Minimize profile"><span aria-hidden="true">↙</span> <span class="close-label">minimize</span></button>
+<div class="card-bio">
+<div class="card-portrait"><img src="portrait.jpg" alt="Artem in the mountains">
+</div>
+<div><h2 id="card-name">Artem Borisenko</h2>
+<p class="card-age"><span id="expanded-age"></span> years old</p>
+<p><span class="sr-only" data-tenure>Five</span><span class="tenure-number" aria-hidden="true">Five</span> <span class="bio-copy">years engineering ERP for factories</span></p></div>
+</div>
+<address class="card-contacts">
+<a href="https://www.google.com/maps/@59.9567555,30.0401989,10.56z">St. Petersburg, Russia</a>
+<span class="contact-item"><button type="button" class="copy-contact" data-value="ba.pydev@gmail.com" aria-label="Copy email address" title="Copy email address"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 4V1.5h9v10H12"/><rect x="2" y="5" width="8.5" height="9"/></svg></button><a href="mailto:ba.pydev@gmail.com">ba.pydev@gmail.com</a></span>
+<a href="tel:+79313518884">Phone</a>
+<span class="contact-item"><button type="button" class="copy-contact" data-value="@Borisenko_AA" aria-label="Copy Telegram username" title="Copy Telegram username"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 4V1.5h9v10H12"/><rect x="2" y="5" width="8.5" height="9"/></svg></button><a href="https://t.me/Borisenko_AA">Telegram · @Borisenko_AA</a></span>
+</address><span class="sr-only" role="status" id="copy-result"></span>
+</section>
+</div>
+<div id="shift-sidebar" hidden></div>
+</aside>
+<section id="workspace" class="workspace" aria-labelledby="workspace-title">
+<header class="section-head"><div><p class="label">INTERACTIVE ERP DEMO</p><h2 id="workspace-title">Production control</h2></div><span class="badge">SIMULATED DATA</span></header>
+<div class="console">
+<nav class="views" aria-label="Workspace sections"><a href="#overview">Dashboard</a><a href="#orders">Orders</a><a href="#line">Production</a></nav>
 
-    <!--Блок фотографии-->
+<div id="shift-sentinel"></div>
+<div class="dashboard" id="overview">
+<section class="metrics" data-section="overview" aria-label="Shift overview">
+<div class="metric" data-tip="shift" tabindex="0"><h3>SHIFT OVERVIEW</h3><div class="number"><b id="percent">87</b><span>%</span></div><div class="plan-track"><span class="plan-target">Plan 92%</span><progress value="216" max="248" aria-label="Shift plan completion"></progress></div><p><span id="output-count">216</span> of <span id="shift-total">248</span> operations complete</p></div>
+<div class="secondary"><div class="metric"><h3><a href="#orders">ACTIVE ORDERS</a></h3><div class="small-number" id="active-orders">01</div></div><div class="metric exception"><h3><a href="#order-248">OPEN EXCEPTIONS</a></h3><div class="small-number" id="exceptions">01</div></div></div>
+</section>
 
-    <section class="flex">
-        <div class="flex_item side main">
-            <img src="media/img/black2.jpeg" alt="my photo" class="photo">
-        </div>
+</div>
 
-        <!--Блок начальной информации и контактов-->
-
-        <div class="flex_item content">
-            <div class="name">
-                <h2>artem</h2>
-                <h1>Borisenko</h1>
-                <p>
-                    Fullstack Python developer
-                </p>
-            </div>
-
-            <div class="icons">
-                <a href="https://www.google.com/maps/@59.9567555,30.0401989,10.56z">
-                    <img src="media/img/icons8-маркер-64.png" alt="location">
-                </a>
-                <a href="tel:+79313518884">
-                    <img src="media/img/icons8-номер-pad-96.png" alt="phone">
-                </a>
-                <a href="mailto:ba.pydev@gmail.com">
-                    <img src="media/img/icons8-gmail-100.png" alt="gmail">
-                </a>
-                <a href="https://t.me/Borisenko_AA">
-                    <img src="media/img/icons8-телеграмма-app-60.png" alt="telegram">
-                </a>
-            </div>
-
-            <div class="contact">
-                <div>
-                    <h5>Location</h5>
-                    <h6>St.Petersburg RU</h6>
-                </div>
-                <div>
-                    <h5>Phone</h5>
-                    <h6>+7(931)351-88-8*</h6>
-                </div>
-                <div>
-                    <h5>Email</h5>
-                    <h6>ba.pydev@gmail.com</h6>
-                </div>
-                <div>
-                    <h5>Telegram</h5>
-                    <h6>@Borisenko_AA</h6>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!--Блок информации 1-->
-
-    <section class="flex">
-        <div class="flex_item side">
-            <h1>Intro</h1>
-            <h6>What I am all about</h6>
-        </div>
-
-        <!--Информация обо мне-->
-
-        <div class="flex_item content">
-            <div class="text">
-                <h3>Пару слов обо мне:</h3>
-                <p>
-                    Привет! Меня зовут Артем. Я действующий студент SkillFactory.
-                    На данный момент мой прогресс на площадке составляет 60%.
-                </p>
-                <p>
-                    Работаю на должности системного аналитика в мебельной компании.
-                </p>
-                <p>
-                    В мои задачи входит:
-                </p>
-                <ul>
-                    <li>
-                        Оптимизация бизнес процессов компании
-                    </li>
-                    <li>
-                        Поиск, тестирование и сопровождение внедрения софта
-                    </li>
-                    <li>
-                        Разработка IT решений для бизнесса
-                    </li>
-                    <li>
-                        Много-много чего еще =D
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </section>
-
-    <!--Блок информации 2-->
-
-    <section class="flex">
-        <div class="flex_item side">
-            <h1>Skills</h1>
-            <h6>what I learned</h6>
-        </div>
-
-        <!--Информация о навыках-->
-
-        <div class="flex_item content grid">
-            <div class="grid_item">
-                <div class="number">01</div>
-                <div class="info">
-                    <h4>Python</h4>
-                    <div class="container">
-                        <div class="skills python">80%</div>
-                    </div>
-                    <p>Функциональное и объектно-ориентированное программирование</p>
-
-                </div>
-            </div>
-            <div class="grid_item">
-                <div class="number">02</div>
-                <div class="info">
-                    <h4>Django framework</h4>
-                    <div class="container">
-                        <div class="skills django">65%</div>
-                    </div>
-                    <p>Создание проектов на фреймворке Django. Бэкенд-разработка. Отладка. Настройка ORM.</p>
-
-                </div>
-            </div>
-            <div class="grid_item">
-                <div class="number">03</div>
-                <div class="info">
-                    <h4>HTML, CSS</h4>
-                    <div class="container">
-                        <div class="skills css">74%</div>
-                    </div>
-                    <p>Адаптивная верстка сайтов. Стили. Подключение внешних шаблонов к серверной части</p>
-                </div>
-            </div>
-            <div class="grid_item">
-                <div class="number">04</div>
-                <div class="info">
-                    <h4>Java-script</h4>
-                    <div class="container">
-                        <div class="skills js">24%</div>
-                    </div>
-                    <p>Веб программирование на JS. Асинхронные задания. Динамическая стилистика сайта. </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!--Блок информации 3-->
-
-    <section class="flex">
-        <div class="flex_item side">
-            <h1>Achievements</h1>
-            <h6>my professional victories</h6>
-        </div>
-
-        <!--Информация о профессиональных достижениях-->
-
-        <div class="flex_item content">
-            <h3>А теперь немного о моих профессиональных достижениях!</h3>
-            <ul>
-                <li>
-                    2014-2017 гг. Работа в СЦ Samsung. Прохождение обучения по теме беспроводной связи. 2 курса
-                    повышения квалификации на базе фирменных учебных заведений.
-                </li>
-                <li>
-                    2017-2021 гг. Работа в федеральной сети обслуживания торгового оборудования и IT коммуникаций на
-                    должности руководителя отдела. Выведение отдела в "плюс". Организация работы с такими подрядчиками как
-                    Окей, Лента, Ашан, KFC, Бургер-Кинг, Дикси, Перекресток, X5, СПБГУ и пр.
-                </li>
-                <li>
-                    2021-2022 гг. Официальный партнер учетного сервиса Мой-Склад. Открытие и коммерческое развитие
-                    направлений в сфере маркировки продукции, бизнес-аналитики. Старт обучения на профессию Fullstack
-                    разработчик Python.
-                </li>
-                <li>
-                    2022 г. Обеспечение поэкземплярного учета производимой продукции предприятия. Выведение и анализ
-                    показателей производительности компании. Осуществление финансового и ресусного планирования.
-                </li>
-            </ul>
-        </div>
-    </section>
-
+<section class="panel orders" id="orders">
+<h3>Work orders</h3>
+<div id="work-orders"></div>
+<a href="#line">View selected production route ↗</a>
+</section>
+<section class="panel production" id="line" tabindex="-1"><h3>Production route</h3><label for="route-order">Work order </label><select id="route-order"><option value="248">WO-0248</option><option value="249">WO-0249</option><option value="250">WO-0250</option></select><p class="route-help">Select a number to complete all units through it. Select a checked number to reopen it and later units.</p><div class="flow"></div><p class="route-message" role="status"></p><a id="route-order-link" href="#orders">View work order</a></section>
+</div>
+</section>
 </main>
+<div id="dashboard-tip" role="tooltip" hidden></div>
 </body>
 </html>
