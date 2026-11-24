@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="app.webmanifest">
+<meta name="theme-color" content="#101720">
+<meta name="apple-mobile-web-app-title" content="ERP Control">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <title>Artem Borisenko — Manufacturing ERP</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
@@ -35,7 +40,7 @@
 <a href="https://www.google.com/maps/@59.9567555,30.0401989,10.56z">St. Petersburg, Russia</a>
 <span class="contact-item"><button type="button" class="copy-contact" data-value="ba.pydev@gmail.com" aria-label="Copy email address" title="Copy email address"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 4V1.5h9v10H12"/><rect x="2" y="5" width="8.5" height="9"/></svg></button><a href="mailto:ba.pydev@gmail.com">ba.pydev@gmail.com</a></span>
 <a href="tel:+79313518884">Phone</a>
-<span class="contact-item"><button type="button" class="copy-contact" data-value="@Borisenko_AA" aria-label="Copy Telegram username" title="Copy Telegram username"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 4V1.5h9v10H12"/><rect x="2" y="5" width="8.5" height="9"/></svg></button><a href="https://t.me/Borisenko_AA">Telegram · @Borisenko_AA</a></span>
+<span class="contact-item"><button type="button" class="copy-contact" data-value="@bapydev" aria-label="Copy Telegram username" title="Copy Telegram username"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 4V1.5h9v10H12"/><rect x="2" y="5" width="8.5" height="9"/></svg></button><a href="https://t.me/bapydev">Telegram · @bapydev</a></span>
 </address><span class="sr-only" role="status" id="copy-result"></span>
 </section>
 </div>
@@ -44,23 +49,23 @@
 <section id="workspace" class="workspace" aria-labelledby="workspace-title">
 <header class="section-head"><div><p class="label">INTERACTIVE ERP DEMO</p><h2 id="workspace-title">Production control</h2></div><span class="badge">SIMULATED DATA</span></header>
 <div class="console">
-<nav class="views" aria-label="Workspace sections"><a href="#overview">Dashboard</a><a href="#orders">Orders</a><a href="#line">Production</a></nav>
+<nav class="views" aria-label="Workspace sections"><a href="#overview">Dashboard</a><a href="#line">Production</a><a href="#orders">Orders</a></nav>
 
 <div id="shift-sentinel"></div>
 <div class="dashboard" id="overview">
 <section class="metrics" data-section="overview" aria-label="Shift overview">
 <div class="metric" data-tip="shift" tabindex="0"><h3 aria-label="SHIFT OVERVIEW"><span aria-hidden="true" class="shift-title">SHIFT OVERVIEW</span></h3><div class="number"><b id="percent">87</b><span>%</span></div><div class="plan-track"><span class="plan-target">Plan 92%</span><progress value="216" max="248" aria-label="Shift plan completion"></progress></div><p><span id="output-count">216</span> of <span id="shift-total">248</span> operations complete</p></div>
-<div class="secondary"><div class="metric"><h3><a href="#orders">ACTIVE ORDERS</a></h3><div class="small-number" id="active-orders">01</div></div><div class="metric exception"><h3><a href="#order-248">OPEN EXCEPTIONS</a></h3><div class="small-number" id="exceptions">01</div></div></div>
+<div class="secondary"><div class="metric"><h3><a href="#orders">ACTIVE ORDERS</a></h3><div class="small-number" id="active-orders">01</div></div><div class="metric exception"><h3><a id="exceptions-link" href="#assembly-exception">OPEN EXCEPTIONS</a></h3><div class="small-number" id="exceptions">01</div></div></div>
 </section>
 
 </div>
 
+<section class="panel production" id="line" tabindex="-1"><h3>Production route</h3><label for="route-order">Work order </label><select id="route-order"><option value="248">WO-0248</option><option value="249">WO-0249</option><option value="250">WO-0250</option></select><p class="route-help">Select a number to complete all units through it. Select a checked number to reopen it and later units.</p><div class="flow"></div><p class="route-message" role="status"></p><a id="route-order-link" href="#orders">View work order</a></section>
 <section class="panel orders" id="orders">
 <h3>Work orders</h3>
 <div id="work-orders"></div>
 <a href="#line">View selected production route ↗</a>
 </section>
-<section class="panel production" id="line" tabindex="-1"><h3>Production route</h3><label for="route-order">Work order </label><select id="route-order"><option value="248">WO-0248</option><option value="249">WO-0249</option><option value="250">WO-0250</option></select><p class="route-help">Select a number to complete all units through it. Select a checked number to reopen it and later units.</p><div class="flow"></div><p class="route-message" role="status"></p><a id="route-order-link" href="#orders">View work order</a></section>
 </div>
 </section>
 </main>

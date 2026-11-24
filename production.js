@@ -10,7 +10,7 @@ const stages = [
 const milestones = ["Approval", "Parts delivery", "Production launch", "Inspection"];
 const orderStatuses = ["Awaiting approval", "Approved", "Parts received", "In production", "Awaiting inspection", "Ready"];
 const orders = [
-  { id: 248, size: 8, completed: 3, deliveryLate: true },
+  { id: 248, size: 8, completed: 3, assemblyException: true },
   { id: 249, size: 42, completed: 5 },
   { id: 250, size: 12, completed: 5 }
 ];
@@ -116,6 +116,35 @@ function focusNextUnit() {
   ], 1600);
 }
 
+function assemblyNotice(order) {
+  const notice = document.createElement("div");
+  notice.id = "assembly-exception";
+  notice.className = "delivery-notice";
+  notice.innerHTML = '<div class="delivery-content"><span><strong>EXCEPTION · ASSEMBLY</strong>Torque setting confirmation pending.</span><label><input type="checkbox"> Torque setting verified</label></div>';
+  notice.querySelector("input").onchange = async () => {
+    order.assemblyException = false;
+    const height = notice.offsetHeight;
+    notice.style.height = height + "px";
+    const content = notice.firstElementChild;
+    content.textContent = "Exception 01 · Resolved ✓";
+    content.classList.add("resolved");
+    flow.querySelector(".assembly [data-unit]").focus({ preventScroll: true });
+    renderBatch();
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    if (!notice.isConnected) return;
+    if (!motionPreference.matches) {
+      await notice.animate([{ height: height + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
+        { duration: 260, easing: "ease-out", fill: "forwards" }).finished;
+    }
+    notice.remove();
+  };
+  const station = flow.querySelector(".station.assembly");
+  const row = document.createElement("div");
+  row.className = "assembly-row";
+  station.replaceWith(row);
+  row.append(station, notice);
+}
+
 function buildRoute() {
 station(stages[0]);
 connector(["M50 0V12H25V30","M50 0V12H75V30"]);
@@ -123,6 +152,7 @@ station(stages[1]);
 station(stages[2]);
 connector(["M25 0V16H50V30","M75 0V16H50V30"], ["supply","blanks"]);
 station(stages[3]);
+if (selectedOrder.assemblyException) assemblyNotice(selectedOrder);
 connector(["M50 0V30"], ["assembly"]);
 station(stages[4]);
 connector(["M50 0V30"], ["pack"]);
@@ -251,21 +281,33 @@ function dashboardCounter(id, digits = 1) {
   let target = displayed;
   let timer;
 
+  function renderDigits(direction = 0) {
+    const text = String(displayed).padStart(digits, "0");
+    while (element.children.length > text.length) element.firstElementChild.remove();
+    while (element.children.length < text.length) {
+      const digit = document.createElement("span");
+      digit.className = "counter-digit";
+      element.prepend(digit);
+    }
+    for (let i = 0; i < text.length; i++) {
+      const digit = element.children[i];
+      if (digit.textContent === text[i]) continue;
+      digit.textContent = text[i];
+      if (direction && !motionPreference.matches) {
+        digit.getAnimations().forEach(animation => animation.cancel());
+        digit.animate([{ transform: "translateY(" + direction * 0.13 + "em)" }, { transform: "none" }],
+          { duration: 75, easing: "ease-out" });
+      }
+    }
+  }
+  element.replaceChildren();
+  renderDigits();
+
   function step() {
     if (displayed === target) return;
-    const previous = displayed;
-    displayed = motionPreference.matches ? target : displayed + Math.sign(target - displayed);
-    const text = String(displayed).padStart(digits, "0");
-    if (digits === 2 && !motionPreference.matches) {
-      element.dataset.previous = String(previous).padStart(digits, "0");
-      const next = document.createElement("span");
-      next.textContent = text;
-      element.replaceChildren(next);
-      element.classList.add("rolling");
-      next.addEventListener("animationend", () => element.classList.remove("rolling"), { once: true });
-    } else {
-      element.textContent = text;
-    }
+    const direction = Math.sign(target - displayed);
+    displayed = motionPreference.matches ? target : displayed + direction;
+    renderDigits(direction);
     if (displayed !== target) timer = setTimeout(step, 75);
   }
 
@@ -311,8 +353,12 @@ function renderBatch() {
   orderLink.href = selectedOrder ? "#order-" + selectedOrder.id : "#orders";
   orderLink.textContent = selectedOrder ? "View WO-0" + selectedOrder.id : "View work orders";
   orderLink.onclick = () => { if (selectedOrder) document.getElementById("order-" + selectedOrder.id).open = true; };
-  const exceptions = orders.filter(order => order.deliveryLate).length;
+  const exceptions = orders.filter(order => order.assemblyException).length;
   setExceptions(exceptions);
+  const issue = orders.find(order => order.assemblyException);
+  const link = document.querySelector("#exceptions-link");
+  link.href = issue ? (issue.completed >= 3 ? "#assembly-exception" : "#order-" + issue.id) : "#line";
+  link.onclick = () => { if (issue && issue.completed >= 3 && issue !== selectedOrder) chooseOrder(issue); };
   document.querySelector("#exceptions").parentElement.classList.toggle("exception",exceptions > 0);
   const counts = orders.map(completion);
   const total = counts.reduce((sum, order) => sum + order.total, 0);
@@ -348,38 +394,6 @@ function createOrder(order) {
   running.className = "production-running";
   running.textContent = "Production in progress";
   details.append(summary, list, running);
-  if (order.deliveryLate) {
-    const notice = document.createElement("div");
-    notice.className = "delivery-notice";
-    const content = document.createElement("div");
-    content.className = "delivery-content";
-    const message = document.createElement("span");
-    message.textContent = "Bearing delivery delayed for this batch.";
-    const label = document.createElement("strong");
-    label.textContent = "EXCEPTION";
-    message.prepend(label);
-    const receive = document.createElement("button");
-    receive.type = "button";
-    receive.textContent = "Confirm receipt";
-    receive.onclick = async () => {
-      order.deliveryLate = false;
-      const height = notice.offsetHeight;
-      notice.style.height = height + "px";
-      content.textContent = "Exception 01 · Resolved ✓";
-      content.classList.add("resolved");
-      details.querySelector("summary").focus({ preventScroll: true });
-      renderBatch();
-      await new Promise(resolve => setTimeout(resolve, 1400));
-      if (!motionPreference.matches) {
-        await notice.animate([{ height: height + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
-          { duration: 300, easing: "ease-in-out", fill: "forwards" }).finished;
-      }
-      notice.remove();
-    };
-    content.append(message, receive);
-    notice.append(content);
-    details.append(notice);
-  }
   for (const [index, label] of milestones.entries()) {
     const item = document.createElement("li");
     const button = document.createElement("button");
@@ -420,7 +434,7 @@ function createOrder(order) {
     running.textContent = "Production in progress · " + progress.percent + "% (" + progress.done + "/" + progress.total + " operations)";
     running.hidden = order.completed !== 3;
     details.classList.toggle("order-ready", order.completed === 5);
-    status.textContent = orderStatuses[order.completed] + (order.deliveryLate ? " / Delivery delayed" : "");
+    status.textContent = orderStatuses[order.completed] + (order.assemblyException ? " / Assembly check" : "");
     Array.from(list.children).forEach((item, index) => {
       const done = index >= 3 ? order.completed === 5 : index < order.completed;
       item.classList.toggle("done", done);

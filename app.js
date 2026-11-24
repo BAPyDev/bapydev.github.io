@@ -136,25 +136,9 @@ function showConnection() {
     stage("pass", "SSH PASS");
     await wait(950);
     if (current !== run) return;
-    const animateGuest = !motionPreference.matches;
-    const startWidth = terminal.getBoundingClientRect().width;
-    if (animateGuest) {
-      const fade = line.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: "ease-out", fill: "forwards" });
-      await fade.finished.catch(() => {});
-      if (current !== run) return;
-      fade.cancel();
-    }
     if (ip) address.textContent = "guest ip: " + ip;
     stage("guest", ip ? "" : "guest ip: masked");
-    if (animateGuest) {
-      const endWidth = terminal.getBoundingClientRect().width;
-      terminal.animate([{ width: startWidth + "px" }, { width: endWidth + "px" }], {
-        duration: 310, easing: "ease-in-out"
-      });
-      line.animate([{ opacity: 0 }, { opacity: 1 }], {
-        delay: 310, duration: 160, easing: "ease-out", fill: "backwards"
-      });
-    }
+    if (ip) revealTerminalText(address);
   }
   window.addEventListener("online", connect);
   window.addEventListener("offline", connect);
@@ -316,3 +300,9 @@ document.addEventListener("keydown", event => {
 });
 window.addEventListener("scroll", hideDashboardTip, true);
 
+
+if (window.isSecureContext && /^https?:$/.test(location.protocol) && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(error => console.warn("Offline setup failed", error));
+  });
+}
