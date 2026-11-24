@@ -451,22 +451,24 @@ body.profile-open::after { opacity: .55; }
   .top { padding: 7px 6px; }
   .views { display: grid; grid-template-columns: repeat(3, 1fr); }
   .views a { padding: 0 4px; display: grid; place-items: center; }
-  .dashboard { padding: 6px; }
-  .metrics { grid-template-columns: minmax(0,1fr); gap: 6px; }
-  .secondary { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
-  #overview { position: static; padding-block: 3px; }
+  .console { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 20px; padding-bottom: 20px; }
+  #shift-sentinel { display: none; }
+  #overview, .console > .orders, .console > .production { margin: 0 8px; }
+  #overview { position: static; padding: 10px; border: 1px solid var(--border); }
+  .metrics { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .secondary { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
   .views { height: 36px; }
   #overview, #orders, #line, .work-order { scroll-margin-top: 42px; }
   .top { grid-template-rows: 38px; gap: 6px; font-size: 10px; white-space: nowrap; }
   .connection { font-size: 9px; }
-  #overview .metric { display: grid; align-items: center; gap: 5px; padding: 5px 8px; }
-  #overview .metrics > .metric { grid-template-columns: auto auto minmax(0,1fr); }
-  #overview .metric p { grid-column: 1 / -1; }
-  #overview .number { font-size: 26px; }
-  #overview .plan-track { margin: 0; }
-  #overview .secondary .metric { grid-template-columns: 1fr auto; }
-  #overview .small-number { font-size: 19px; }
-  .console > .orders, .console > .production { margin-inline: 4px; padding: 9px; }
+  #overview .metric { display: grid; align-content: start; gap: 10px; padding: 14px; }
+  #overview .metric h3 { font-size: 12px; line-height: 1.4; }
+  #overview .metric p { font-size: 13px; line-height: 1.5; }
+  #overview .number { font-size: clamp(48px, 11vw, 64px); }
+  #overview .plan-track { margin: 0 0 3px; }
+  #overview .secondary .metric { grid-template-rows: 1fr auto; align-content: stretch; padding: 12px; }
+  #overview .small-number { font-size: 28px; line-height: 1.2; }
+  .console > .production, .console > .orders { padding: 12px; }
   .work-order summary { grid-template-columns: 12px 1fr auto; gap: 3px 6px; min-height: 46px; }
   .work-order summary > span:not(.order-state) { grid-column: 2 / -1; grid-row: 2; color: var(--muted); }
   .order-state { max-width: 16ch; }
