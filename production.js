@@ -414,7 +414,6 @@ const desktop = matchMedia("(min-width: 701px)");
 let pastOverview = false;
 function positionShiftOverview() {
   const inSidebar = desktop.matches && pastOverview;
-  overview.classList.toggle("pinned", !desktop.matches && pastOverview);
   if (inSidebar === (metricRow.parentElement === sidebar)) return;
   if (inSidebar) {
     setProfileOpen(false);

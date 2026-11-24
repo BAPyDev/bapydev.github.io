@@ -352,21 +352,11 @@ body.profile-open::after { opacity: .55; }
 
 #shift-sentinel { height: 1px; }
 #overview { position: sticky; top: 0; z-index: 3; background: var(--surface); }
-#overview .number { transition: font-size 180ms ease; }
-#overview.pinned .number { font-size: 26px; }
-#overview.pinned .secondary { display: grid; }
-#overview.pinned .metrics { grid-template-columns: 1fr; }
-#overview.pinned .metric { display: grid; grid-template-columns: auto auto minmax(72px,1fr) auto; align-items: center; gap: 12px; padding: 5px 10px; }
-#overview.pinned .plan-track { margin: 0; }
 .console > .orders { margin-top: 22px; border-top: 1px dashed var(--border); }
 .delivery-notice { padding: 10px; border-left: 2px solid var(--red); margin: 10px 0; }
 .delivery-notice button { margin: 0 0 0 8px; }
 #orders, #line, .work-order { scroll-margin-top: 96px; }
-@media(max-width:700px) {
-  #overview.pinned .metric { grid-template-columns: auto auto 1fr; gap: 5px; }
-  #overview.pinned .metric p { grid-column: 1 / -1; }
-}
-@media(prefers-reduced-motion:reduce) { #overview .number { transition: none; } }
+
 
 .unit-rail.grouped { grid-template-columns: repeat(auto-fit,minmax(min(38px,100%),1fr)); align-content: start; }
 .unit-group { margin: 0; position: static; min-width: 0; }
@@ -384,6 +374,13 @@ body.profile-open::after { opacity: .55; }
 #orders, #line, .work-order { scroll-margin-top: 150px; }
 
 @media (max-width: 700px) {
+  /* The toolbar changes the crop, while the photo and its overlays keep their framing. */
+  .scene { bottom: auto; height: calc(100vh + 12px); height: calc(100dvh + 12px); }
+  .scene-image {
+    top: 0;
+    width: max(100cqw, calc((100lvh + 12px) * 1672 / 941));
+    transform: translateX(-6%);
+  }
   .frame { width: calc(100% - 16px); }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .profile { border-right: 0; border-bottom: 1px dashed var(--border); padding: 14px; }
@@ -399,7 +396,14 @@ body.profile-open::after { opacity: .55; }
   .dashboard { padding: 6px; }
   .metrics { grid-template-columns: minmax(0,1fr); gap: 6px; }
   .secondary { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
-  #overview.pinned { padding-block: 3px; }
+  #overview { padding-block: 3px; }
+  #overview .metric { display: grid; align-items: center; gap: 5px; padding: 5px 8px; }
+  #overview .metrics > .metric { grid-template-columns: auto auto minmax(0,1fr); }
+  #overview .metric p { grid-column: 1 / -1; }
+  #overview .number { font-size: 26px; }
+  #overview .plan-track { margin: 0; }
+  #overview .secondary .metric { grid-template-columns: 1fr auto; }
+  #overview .small-number { font-size: 19px; }
   .console > .orders, .console > .production { margin-inline: 4px; padding: 9px; }
   .work-order summary { grid-template-columns: 12px 1fr auto; gap: 3px 6px; min-height: 46px; }
   .work-order summary > span:not(.order-state) { grid-column: 2 / -1; grid-row: 2; color: var(--muted); }
