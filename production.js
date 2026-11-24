@@ -10,9 +10,9 @@ const stages = [
 const milestones = ["Approval", "Parts delivery", "Production launch", "Inspection"];
 const orderStatuses = ["Awaiting approval", "Approved", "Parts received", "In production", "Awaiting inspection", "Ready"];
 const orders = [
-  { id: 248, project: "Conveyor drive", size: 8, completed: 3, deliveryLate: true },
-  { id: 249, project: "Pump housings", size: 42, completed: 5 },
-  { id: 250, project: "Fixture plates", size: 12, completed: 5 }
+  { id: 248, size: 8, completed: 3, deliveryLate: true },
+  { id: 249, size: 42, completed: 5 },
+  { id: 250, size: 12, completed: 5 }
 ];
 
 
@@ -22,7 +22,7 @@ for (const order of orders) {
 }
 let selectedOrder = orders[0];
 let byId = selectedOrder.route;
-const productionTab = document.querySelector('.views a[href="#line"]');
+
 const routePicker = document.querySelector("#route-order");
 function chooseOrder(order) {
   hideDashboardTip();
@@ -102,6 +102,20 @@ function station(stage) {
   }
   flow.append(box);
 }
+function focusNextUnit() {
+  const next = flow.querySelector('[data-unit][aria-pressed="false"]:not(.locked)');
+  if (!next) return;
+  const group = next.closest(".unit-group");
+  if (group) group.open = true;
+  next.focus({ preventScroll: true });
+  next.scrollIntoView({ block: "center", behavior: motionPreference.matches ? "instant" : "smooth" });
+  next.animate([
+    { outline: "2px solid #a6caff", backgroundColor: "#354b66", offset: 0 },
+    { outline: "2px solid #a6caff", backgroundColor: "#354b66", offset: .75 },
+    { outline: "2px solid transparent", backgroundColor: "transparent" }
+  ], 1600);
+}
+
 function buildRoute() {
 station(stages[0]);
 connector(["M50 0V12H25V30","M50 0V12H75V30"]);
@@ -116,6 +130,12 @@ const inspection = document.createElement("a");
 inspection.className = "inspection-destination";
 inspection.href = "#order-" + selectedOrder.id;
 inspection.textContent = "Inspection ↗";
+inspection.addEventListener("click", event => {
+  if (selectedOrder.completed === 3) {
+    event.preventDefault();
+    focusNextUnit();
+  }
+});
 flow.append(inspection);
 }
 
@@ -225,6 +245,43 @@ function completion(order) {
   return {done, total, percent: Math.round(100 * done / total)};
 }
 
+function dashboardCounter(id, digits = 1) {
+  const element = document.getElementById(id);
+  let displayed = Number(element.textContent);
+  let target = displayed;
+  let timer;
+
+  function step() {
+    if (displayed === target) return;
+    const previous = displayed;
+    displayed = motionPreference.matches ? target : displayed + Math.sign(target - displayed);
+    const text = String(displayed).padStart(digits, "0");
+    if (digits === 2 && !motionPreference.matches) {
+      element.dataset.previous = String(previous).padStart(digits, "0");
+      const next = document.createElement("span");
+      next.textContent = text;
+      element.replaceChildren(next);
+      element.classList.add("rolling");
+      next.addEventListener("animationend", () => element.classList.remove("rolling"), { once: true });
+    } else {
+      element.textContent = text;
+    }
+    if (displayed !== target) timer = setTimeout(step, 75);
+  }
+
+  return value => {
+    if (value === target) return;
+    clearTimeout(timer);
+    target = value;
+    step();
+  };
+}
+
+const setShiftPercent = dashboardCounter("percent");
+const setOutputCount = dashboardCounter("output-count");
+const setShiftTotal = dashboardCounter("shift-total");
+const setActiveOrders = dashboardCounter("active-orders", 2);
+const setExceptions = dashboardCounter("exceptions", 2);
 function renderBatch() {
   for (const stage of selectedOrder ? byId.values() : []) {
     if (stage.id === "start") continue;
@@ -255,23 +312,17 @@ function renderBatch() {
   orderLink.textContent = selectedOrder ? "View WO-0" + selectedOrder.id : "View work orders";
   orderLink.onclick = () => { if (selectedOrder) document.getElementById("order-" + selectedOrder.id).open = true; };
   const exceptions = orders.filter(order => order.deliveryLate).length;
-  document.querySelector("#exceptions").textContent = String(exceptions).padStart(2,"0");
+  setExceptions(exceptions);
   document.querySelector("#exceptions").parentElement.classList.toggle("exception",exceptions > 0);
   const counts = orders.map(completion);
   const total = counts.reduce((sum, order) => sum + order.total, 0);
   const done = counts.reduce((sum, order) => sum + order.done, 0);
-  const output = document.querySelector("#output-count");
-  if (+output.textContent !== done && !motionPreference.matches) {
-    const metric = output.closest(".metric");
-    metric.getAnimations().forEach(animation => animation.cancel());
-    metric.animate([{backgroundColor:"#27415a"},{backgroundColor:"transparent"}],420);
-  }
-  output.textContent = done;
-  document.querySelector("#shift-total").textContent = total;
+  setOutputCount(done);
+  setShiftTotal(total);
   const bar = document.querySelector(".plan-track progress");
   bar.max = total;
   bar.value = done;
-  document.querySelector("#percent").textContent = Math.floor(100*done/total);
+  setShiftPercent(Math.floor(100*done/total));
 
 }
 
@@ -279,11 +330,12 @@ function createOrder(order) {
   const details = document.createElement("details");
   details.className = "work-order";
   details.id = "order-" + order.id;
+  details.open = order.completed < 5;
   const summary = document.createElement("summary");
   const number = document.createElement("strong");
   number.textContent = "WO-" + String(order.id).padStart(4, "0");
   const operation = document.createElement("span");
-  operation.textContent = order.project + " · " + order.size + " units";
+  operation.textContent = order.size + " units";
   const status = document.createElement("span");
   status.className = "order-state";
   status.setAttribute("aria-live", "polite");
@@ -299,15 +351,33 @@ function createOrder(order) {
   if (order.deliveryLate) {
     const notice = document.createElement("div");
     notice.className = "delivery-notice";
-    notice.textContent = "EXCEPTION · Bearing delivery delayed for this batch. ";
+    const content = document.createElement("div");
+    content.className = "delivery-content";
+    const message = document.createElement("span");
+    message.textContent = "Bearing delivery delayed for this batch.";
+    const label = document.createElement("strong");
+    label.textContent = "EXCEPTION";
+    message.prepend(label);
     const receive = document.createElement("button");
+    receive.type = "button";
     receive.textContent = "Confirm receipt";
-    receive.onclick = () => {
+    receive.onclick = async () => {
       order.deliveryLate = false;
-      notice.textContent = "Delivery received · Bearings available for production.";
+      const height = notice.offsetHeight;
+      notice.style.height = height + "px";
+      content.textContent = "Exception 01 · Resolved ✓";
+      content.classList.add("resolved");
+      details.querySelector("summary").focus({ preventScroll: true });
       renderBatch();
+      await new Promise(resolve => setTimeout(resolve, 1400));
+      if (!motionPreference.matches) {
+        await notice.animate([{ height: height + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
+          { duration: 300, easing: "ease-in-out", fill: "forwards" }).finished;
+      }
+      notice.remove();
     };
-    notice.append(receive);
+    content.append(message, receive);
+    notice.append(content);
     details.append(notice);
   }
   for (const [index, label] of milestones.entries()) {
@@ -328,11 +398,7 @@ function createOrder(order) {
       }
       if (index >= 3 && order.completed === 3) {
         chooseOrder(order);
-        productionTab.focus({preventScroll: true});
-        productionTab.scrollIntoView({block:"nearest"});
-        productionTab.getAnimations().forEach(animation => animation.cancel());
-        productionTab.animate(motionPreference.matches ? [{background:"#344b69"},{background:"transparent"}] :
-          [{transform:"translateY(0)"},{transform:"translateY(-5px)",background:"#344b69"},{transform:"translateY(0)"}], 380);
+        focusNextUnit();
         return;
       }
       if (index > order.completed) {
@@ -353,6 +419,7 @@ function createOrder(order) {
     const progress = completion(order);
     running.textContent = "Production in progress · " + progress.percent + "% (" + progress.done + "/" + progress.total + " operations)";
     running.hidden = order.completed !== 3;
+    details.classList.toggle("order-ready", order.completed === 5);
     status.textContent = orderStatuses[order.completed] + (order.deliveryLate ? " / Delivery delayed" : "");
     Array.from(list.children).forEach((item, index) => {
       const done = index >= 3 ? order.completed === 5 : index < order.completed;
@@ -362,7 +429,7 @@ function createOrder(order) {
       button.setAttribute("aria-disabled", String(index < 3 && index > order.completed));
       button.firstElementChild.textContent = done ? "✔" : "";
     });
-    document.querySelector("#active-orders").textContent = String(orders.filter(o => o.completed < 5).length).padStart(2, "0");
+    setActiveOrders(orders.filter(o => o.completed < 5).length);
   }
   order.refresh = update;
   update();
@@ -373,7 +440,7 @@ chooseOrder(selectedOrder);
 
 const sectionLinks = [...document.querySelectorAll(".views a")];
 function highlightSection() {
-  const cutoff = document.querySelector(".views").offsetHeight + (window.matchMedia("(max-width: 700px)").matches ? document.querySelector("#overview").offsetHeight : 0) + 20;
+  const cutoff = document.querySelector(".views").offsetHeight + 20;
   const current = sectionLinks.slice(1).filter(link => document.querySelector(link.hash).getBoundingClientRect().top <= cutoff).at(-1) || sectionLinks[0];
   for (const link of sectionLinks) {
     if (link === current) link.setAttribute("aria-current","location");
@@ -386,7 +453,7 @@ function openLinkedOrder(hash) {
 }
 document.addEventListener("click", event => {
   const link = event.target.closest('a[href^="#order-"]');
-  if (link) openLinkedOrder(link.hash);
+  if (link && !event.defaultPrevented) openLinkedOrder(link.hash);
 });
 window.addEventListener("hashchange", () => openLinkedOrder(location.hash));
 window.addEventListener("scroll",highlightSection,{passive:true});

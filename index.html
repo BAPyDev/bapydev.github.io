@@ -11,7 +11,7 @@
 </head>
 <body>
 <div class="scene" aria-hidden="true"><div class="scene-image"><div class="lamp-cutout" aria-hidden="true"></div><canvas id="clock-face" width="260" height="136"></canvas></div></div>
-<header class="bar"><div class="frame top"><a href="#profile">ARTEM BORISENKO</a><a href="#workspace">ERP DEMO <span aria-hidden="true">↘</span></a></div></header>
+<header class="bar"><div class="frame top"><a href="#profile">ARTEM BORISENKO</a><span class="connection" data-phase="request"><i class="connection-led" aria-hidden="true"></i><span class="connection-line"><button type="button" id="client-ip" aria-label="Copy guest IP address" hidden></button><span id="access-state">requesting client IP...</span></span><span class="ip-feedback" role="status"></span></span><a href="#workspace">ERP DEMO <span aria-hidden="true">↘</span></a></div></header>
 <main class="frame layout">
 <aside id="profile" class="profile">
 <div class="profile-anchor">
@@ -49,7 +49,7 @@
 <div id="shift-sentinel"></div>
 <div class="dashboard" id="overview">
 <section class="metrics" data-section="overview" aria-label="Shift overview">
-<div class="metric" data-tip="shift" tabindex="0"><h3>SHIFT OVERVIEW</h3><div class="number"><b id="percent">87</b><span>%</span></div><div class="plan-track"><span class="plan-target">Plan 92%</span><progress value="216" max="248" aria-label="Shift plan completion"></progress></div><p><span id="output-count">216</span> of <span id="shift-total">248</span> operations complete</p></div>
+<div class="metric" data-tip="shift" tabindex="0"><h3 aria-label="SHIFT OVERVIEW"><span aria-hidden="true" class="shift-title">SHIFT OVERVIEW</span></h3><div class="number"><b id="percent">87</b><span>%</span></div><div class="plan-track"><span class="plan-target">Plan 92%</span><progress value="216" max="248" aria-label="Shift plan completion"></progress></div><p><span id="output-count">216</span> of <span id="shift-total">248</span> operations complete</p></div>
 <div class="secondary"><div class="metric"><h3><a href="#orders">ACTIVE ORDERS</a></h3><div class="small-number" id="active-orders">01</div></div><div class="metric exception"><h3><a href="#order-248">OPEN EXCEPTIONS</a></h3><div class="small-number" id="exceptions">01</div></div></div>
 </section>
 

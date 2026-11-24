@@ -1,5 +1,166 @@
 "use strict";
 
+const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+
+function revealTerminalText(element, delay = 0) {
+  if (motionPreference.matches) return;
+  const steps = element.textContent.length;
+  element.animate([
+    { clipPath: "inset(0 100% 0 0)" },
+    { clipPath: "inset(0 0% 0 0)" }
+  ], { duration: Math.min(steps * 32, 560), delay, easing: "steps(" + steps + ", end)", fill: "backwards" });
+}
+
+const shiftTitle = document.querySelector(".shift-title");
+function scrambleShiftTitle() {
+  if (motionPreference.matches) return;
+  const title = shiftTitle.textContent;
+  const glyphs = "#%*+/<>=";
+  const start = performance.now();
+  function frame() {
+    const resolved = Math.floor((performance.now() - start) / 45);
+    if (resolved >= title.length || motionPreference.matches) {
+      shiftTitle.textContent = title;
+      return;
+    }
+    shiftTitle.textContent = Array.from(title, (letter, i) =>
+      i < resolved || letter === " " ? letter : glyphs[Math.floor(Math.random() * glyphs.length)]
+    ).join("");
+    setTimeout(frame, 45);
+  }
+  frame();
+}
+const titleObserver = new IntersectionObserver(entries => {
+  if (entries.some(entry => entry.isIntersecting)) {
+    scrambleShiftTitle();
+    titleObserver.disconnect();
+  }
+});
+titleObserver.observe(shiftTitle);
+
+function showConnection() {
+  const terminal = document.querySelector(".connection");
+  const address = document.querySelector("#client-ip");
+  const status = document.querySelector("#access-state");
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  let run = 0;
+  let ip;
+  let feedbackTimer;
+  const feedback = terminal.querySelector(".ip-feedback");
+  function placeFeedback(x, y) {
+    feedback.style.left = Math.max(4, Math.min(x + 10, document.documentElement.clientWidth - feedback.offsetWidth - 4)) + "px";
+    feedback.style.top = (y + 14 + feedback.offsetHeight <= innerHeight ? y + 14 : Math.max(4, y - feedback.offsetHeight - 8)) + "px";
+  }
+  let followPointer = false;
+  document.addEventListener("pointermove", event => {
+    if (followPointer && feedback.textContent) placeFeedback(event.clientX, event.clientY);
+  }, { passive: true });
+  address.addEventListener("click", async event => {
+    const bounds = address.getBoundingClientRect();
+    const x = event.detail ? event.clientX : bounds.left;
+    const y = event.detail ? event.clientY : bounds.bottom;
+    const current = run;
+    let message = "✓ COPIED";
+    try {
+      await navigator.clipboard.writeText(ip);
+    } catch {
+      message = "COPY UNAVAILABLE";
+    }
+    if (current !== run) return;
+    feedback.textContent = message;
+    followPointer = event.detail > 0;
+    placeFeedback(x, y);
+    revealTerminalText(feedback);
+    clearTimeout(feedbackTimer);
+    feedbackTimer = setTimeout(() => { feedback.textContent = ""; }, 1250);
+  });
+
+  function stage(phase, message) {
+    address.hidden = !(ip && ["address", "allowed", "guest"].includes(phase));
+    terminal.dataset.phase = phase;
+    status.textContent = message;
+    if (message) revealTerminalText(status);
+  }
+
+  async function lookup() {
+    try {
+      const response = await fetch("https://api64.ipify.org?format=json", {
+        credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store",
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!response.ok) return null;
+      const { ip } = await response.json();
+      if (typeof ip !== "string") return null;
+      if (ip.includes(":") && /^[0-9a-f:.]{2,45}$/i.test(ip)) {
+        new URL("http://[" + ip + "]/");
+        return ip;
+      }
+      return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip) && ip.split(".").every(n => +n <= 255) ? ip : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function connect() {
+    const current = ++run;
+    terminal.getAnimations().forEach(animation => animation.cancel());
+    const line = terminal.querySelector(".connection-line");
+    line.getAnimations().forEach(animation => animation.cancel());
+    ip = null;
+    feedback.textContent = "";
+    if (!navigator.onLine) {
+      stage("offline", "offline mode");
+      return;
+    }
+    stage("request", "requesting client IP...");
+    const [result] = await Promise.all([lookup(), wait(1100)]);
+    if (current !== run) return;
+    ip = result;
+    if (ip) {
+      address.textContent = "IP: " + ip;
+      stage("address", "");
+      revealTerminalText(address);
+      await wait(1150);
+      if (current !== run) return;
+      // Keep the address in place while its approval label is revealed.
+      stage("allowed", "IP ALLOWED");
+    } else {
+      stage("masked", "IP MASKED");
+    }
+    await wait(1250);
+    if (current !== run) return;
+    stage("checking", "SSH checking...");
+    await wait(1100);
+    if (current !== run) return;
+    stage("pass", "SSH PASS");
+    await wait(950);
+    if (current !== run) return;
+    const animateGuest = !motionPreference.matches;
+    const startWidth = terminal.getBoundingClientRect().width;
+    if (animateGuest) {
+      const fade = line.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: "ease-out", fill: "forwards" });
+      await fade.finished.catch(() => {});
+      if (current !== run) return;
+      fade.cancel();
+    }
+    if (ip) address.textContent = "guest ip: " + ip;
+    stage("guest", ip ? "" : "guest ip: masked");
+    if (animateGuest) {
+      const endWidth = terminal.getBoundingClientRect().width;
+      terminal.animate([{ width: startWidth + "px" }, { width: endWidth + "px" }], {
+        duration: 310, easing: "ease-in-out"
+      });
+      line.animate([{ opacity: 0 }, { opacity: 1 }], {
+        delay: 310, duration: 160, easing: "ease-out", fill: "backwards"
+      });
+    }
+  }
+  window.addEventListener("online", connect);
+  window.addEventListener("offline", connect);
+  connect();
+}
+showConnection();
 function ageOn(date) {
   const beforeBirthday = date.getMonth() === 0
     || (date.getMonth() === 1 && date.getDate() < 9);
@@ -40,7 +201,7 @@ function drawClock() {
 
 if (display) {
   drawClock();
-  window.setInterval(drawClock, 2000);
+  window.setInterval(drawClock, 2230);
 }
 
 const profileAnchor = document.querySelector(".profile-anchor");
@@ -57,7 +218,7 @@ const tenureWord = numberWords[tenure] || String(tenure);
 for (const label of document.querySelectorAll("[data-tenure]")) label.textContent = tenureWord;
 tenureNumber.style.width = tenureWord.length + "ch";
 tenureNumber.textContent = tenureWord;
-const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+
 let tenureTimer;
 
 function setProfileOpen(open) {
@@ -124,8 +285,9 @@ for (const button of document.querySelectorAll(".copy-contact")) {
 
 const dashboardTip = document.querySelector("#dashboard-tip");
 function showDashboardTip(block, x, y) {
-  const target = Math.round(Number(document.querySelector("#shift-total").textContent) * .92);
-  const gap = target - Number(document.querySelector("#output-count").textContent);
+  const progress = document.querySelector(".plan-track progress");
+  const target = Math.round(progress.max * .92);
+  const gap = target - progress.value;
   const label = "Plan by now: " + target + " operations (92%). " + (gap === 0 ? "On plan." : Math.abs(gap) + " operations " + (gap > 0 ? "behind" : "ahead of") + " plan.");
   placeDashboardTip(label,x,y);
 }
