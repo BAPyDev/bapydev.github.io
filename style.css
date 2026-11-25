@@ -557,14 +557,32 @@ body.profile-open::after { opacity: .55; }
 .analyzer button:disabled { opacity: .5; cursor: default; }
 .audio-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
 .analyzer label { display: block; font-size: 12px; }
-.analyzer input { display: block; box-sizing: border-box; width: 100%; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 0; color: var(--text); font: inherit; padding: 9px; margin-top: 4px; }
-.analyzer input::file-selector-button { background: var(--panel); color: var(--text); border: 1px solid var(--border); font: inherit; }
+.audio-control {
+  display: flex; align-items: center; min-width: 0; margin-top: 5px; min-height: 44px;
+  border: 1px solid #425465; background: #101720; color: var(--text);
+}
+.audio-control:focus-within { outline: 1px solid var(--blue); outline-offset: 2px; }
+.audio-control input, .audio-control textarea { font: inherit; color: inherit; min-width: 0; }
+.track-control { position: relative; gap: 10px; padding: 0 12px; border-style: dashed; }
+.track-control:hover { border-color: var(--blue); }
+.track-control input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.track-control > span:last-of-type, .track-symbol { color: var(--blue); }
+#track-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.time-control button { align-self: stretch; flex: 0 0 40px; margin: 0; padding: 0; background: #1a2532; color: var(--blue); border: 0; font-size: 18px; }
+.time-control button:hover:enabled { background: #243449; }
+#offset { appearance: textfield; flex: 1; width: 0; text-align: center; background: transparent; border: 0; }
+#offset::-webkit-inner-spin-button, #offset::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.band-control { align-items: stretch; }
+.band-control > span { padding: 10px; border-right: 1px dashed var(--border); color: var(--blue); }
+#bands { flex: 1; resize: vertical; min-height: 60px; padding: 9px 12px; background: transparent; border: 0; line-height: 1.55; }
+#measure { background: var(--blue); border-color: var(--blue); }
+#compare { background: var(--red); border-color: var(--red); }
 .analyzer canvas { display: block; width: 100%; height: clamp(190px, 28vw, 320px); background: var(--surface); border: 1px solid var(--border); }
 .analyzer .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; }
 .analyzer .legend span::before { content: ""; display: inline-block; background: var(--trace); width: 12px; height: 2px; margin-right: 5px; vertical-align: middle; }
-#gains { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); padding: 0; list-style: none; gap: 6px; }
-#gains li { background: var(--surface); border: 1px solid var(--border); padding: 8px; font-size: 12px; color: var(--muted); }
-#gains strong { display: block; color: var(--blue); font-size: 15px; }
+.eq-gains { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); padding: 0; list-style: none; gap: 6px; }
+.eq-gains li { background: var(--surface); border: 1px solid var(--border); padding: 8px; font-size: 12px; color: var(--muted); }
+.eq-gains strong { display: block; color: var(--blue); font-size: 15px; }
 #activity { position: sticky; bottom: 0; background: var(--surface); padding: 10px 12px; border-left: 2px solid var(--blue); }
 #activity:has(#status:empty):has(#stop[hidden]) { display: none; }
 .analyzer footer { margin-top: 12px; font-size: 11px; }
@@ -575,3 +593,8 @@ body.profile-open::after { opacity: .55; }
   .analyzer-console { padding: 8px; gap: 12px; }
   .audio-fields { grid-template-columns: minmax(0, 1fr); }
 }
+.instrument-layout { display: grid; grid-template-columns: minmax(150px,1fr) minmax(0,2fr); gap: 18px; align-items: start; }
+.instrument-layout select { width: 100%; margin-top: 5px; min-height: 42px; padding: 6px 10px; font: inherit; color: var(--text); border: 1px solid #425465; background: var(--surface); }
+#instrument-range, #instrument-caption { font-size: 12px; }
+.analyzer #instrument-range { color: var(--blue); }
+@media (max-width: 700px) { .instrument-layout { grid-template-columns: minmax(0,1fr); gap: 8px; } }
