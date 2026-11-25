@@ -494,7 +494,7 @@ const sidebar = document.querySelector("#shift-sidebar");
 const desktop = matchMedia("(min-width: 701px)");
 let pastOverview = false;
 function positionShiftOverview() {
-  const inSidebar = desktop.matches && pastOverview;
+  const inSidebar = desktop.matches && pastOverview && !document.getElementById("workspace").hidden;
   if (inSidebar === (metricRow.parentElement === sidebar)) return;
   if (inSidebar) {
     setProfileOpen(false);

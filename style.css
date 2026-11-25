@@ -539,3 +539,39 @@ body.profile-open::after { opacity: .55; }
   @keyframes next-milestone { to { background-position: calc(100% + 40px) 0, 0 0; } }
 
 }
+
+.project-links { display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+.project-links a + a { border-left: 1px dashed var(--border); padding-left: 14px; }
+.project-links a[aria-current] { color: var(--blue); }
+.analyzer [hidden], .workspace[hidden] { display: none; }
+.analyzer-console { display: grid; gap: 14px; padding: 16px; }
+.analyzer .panel { margin: 0; padding: clamp(14px, 2vw, 24px); min-width: 0; }
+.analyzer h3 { margin: 0 0 10px; }
+.analyzer h4 { border-top: 1px dashed var(--border); padding-top: 18px; margin: 18px 0 6px; }
+.analyzer p, .analyzer label, .analyzer footer { color: var(--muted); line-height: 1.6; }
+.analyzer .panel p { margin: 8px 0; max-width: 75ch; }
+.analyzer .panel p:empty { display: none; }
+.audio-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.analyzer button { min-height: 40px; }
+.analyzer .audio-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+.analyzer button:disabled { opacity: .5; cursor: default; }
+.audio-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
+.analyzer label { display: block; font-size: 12px; }
+.analyzer input { display: block; box-sizing: border-box; width: 100%; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 0; color: var(--text); font: inherit; padding: 9px; margin-top: 4px; }
+.analyzer input::file-selector-button { background: var(--panel); color: var(--text); border: 1px solid var(--border); font: inherit; }
+.analyzer canvas { display: block; width: 100%; height: clamp(190px, 28vw, 320px); background: var(--surface); border: 1px solid var(--border); }
+.analyzer .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; }
+.analyzer .legend span::before { content: ""; display: inline-block; background: var(--trace); width: 12px; height: 2px; margin-right: 5px; vertical-align: middle; }
+#gains { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); padding: 0; list-style: none; gap: 6px; }
+#gains li { background: var(--surface); border: 1px solid var(--border); padding: 8px; font-size: 12px; color: var(--muted); }
+#gains strong { display: block; color: var(--blue); font-size: 15px; }
+#activity { position: sticky; bottom: 0; background: var(--surface); padding: 10px 12px; border-left: 2px solid var(--blue); }
+#activity:has(#status:empty):has(#stop[hidden]) { display: none; }
+.analyzer footer { margin-top: 12px; font-size: 11px; }
+@media (max-width: 700px) {
+  .top { grid-template-columns: auto minmax(0,1fr); grid-template-rows: 26px auto; }
+  .project-links { grid-column: 1 / -1; border-top: 1px dashed var(--border); padding-top: 5px; }
+  .project-links a { padding-block: 5px; }
+  .analyzer-console { padding: 8px; gap: 12px; }
+  .audio-fields { grid-template-columns: minmax(0, 1fr); }
+}
