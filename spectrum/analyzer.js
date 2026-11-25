@@ -189,16 +189,126 @@ const noiseEnd = 2.1;
 const noiseStart = .24;
 const filterEnd = 2.85;
 let current, before, track, active;
+let microphoneTrace, preliminaryResponse;
+let mode = 'sweep', monitor, monitorTicket = 0, micPending = false;
+function micUI() {
+  const on = Boolean(monitor || active);
+  $('monitor').setAttribute('aria-pressed', String(on));
+  $('monitor').disabled = Boolean(active);
+  $('mic-state').textContent = active ? 'Measurement' : micPending ? 'Connecting…' : on ? 'Live' : 'Off';
+  $('noise-cut').disabled = !monitor || Boolean(active);
+}
+function stopMonitor() {
+  microphoneTrace = null;
+  monitorTicket++;
+  micPending = false;
+  if (monitor) {
+    cancelAnimationFrame(monitor.frame);
+    monitor.stream.getTracks().forEach(t => t.stop());
+    monitor.context.close();
+    monitor = null;
+  }
+  $('noise-state').textContent = '';
+  $('noise-cut').textContent = 'Filter noise';
+  micUI();
+  draw($('live-chart'), [], true);
+}
+async function startMonitor() {
+  if (active || monitor) return;
+  const ticket = ++monitorTicket;
+  micPending = true; micUI();
+  let stream, context;
+  try {
+    context = new AudioContext();
+    await context.resume();
+    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    if (ticket !== monitorTicket) { stream.getTracks().forEach(t=>t.stop()); await context.close(); return; }
+    const read = makeAnalyser(context,context.createMediaStreamSource(stream));
+    const m = {context,stream,frame:0, floor:null, samples:0, until:0};
+    monitor = m; micPending = false; micUI();
+    status.textContent = '';
+    let last = -100;
+    function tick(now) {
+      if (monitor !== m) return;
+      m.frame = requestAnimationFrame(tick);
+      if (now-last < 90) return;
+      last = now;
+      let power = read();
+      if (m.until) {
+        m.samples++;
+        power.forEach((v,i)=>{m.floor[i] += ((v || 0)-m.floor[i])/m.samples});
+        if (now >= m.until) {m.until=0; $('noise-state').textContent='Noise floor applied'; $('noise-cut').textContent='Reset filter';}
+      } else if (m.floor) power = power.map((v,i)=>v===null ? null : Math.max(0,v-m.floor[i]));
+      microphoneTrace=referencePoints(power);
+      draw($('live-chart'),[{color:accent,points:microphoneTrace}],true);
+      if(mode==='instrument' && !preview)drawReference();
+    }
+    tick(performance.now());
+  } catch(error) {
+    stream?.getTracks().forEach(t=>t.stop());
+    if(context && context.state !== 'closed') await context.close();
+    if(ticket===monitorTicket){stopMonitor();status.textContent=error.name==='NotAllowedError'?'Allow microphone access in the site settings.':error.message;}
+  }
+}
+$('monitor').onclick = () => monitor || micPending ? stopMonitor() : startMonitor();
+$('noise-cut').onclick = () => {
+  if (!monitor || monitor.until) return;
+  if(monitor.floor){monitor.floor=null;$('noise-state').textContent='';$('noise-cut').textContent='Filter noise';return;}
+  monitor.floor=frequencies.map(()=>0);monitor.samples=0;monitor.until=performance.now()+1600;
+  $('noise-state').textContent='Measuring noise floor · keep quiet';
+};
+window.addEventListener('pagehide',stopMonitor);
+
 
 function updateButtons() {
   $('measure').disabled = Boolean(active);
   $('compare').disabled = Boolean(active) || !$('track').files.length;
-  $('track').disabled = $('offset').disabled = Boolean(active);
-  $('offset-up').disabled = $('offset-down').disabled = Boolean(active);
+  $('track').disabled = Boolean(active);
+  $('offset').disabled = Boolean(active) || !$('track').files.length || Number($('offset').max) <= 0;
+
   $('stop').hidden = !active;
-  $('instrument').disabled = $('instrument-play').disabled = $('instrument-measure').disabled = Boolean(active);
+  document.querySelectorAll('[data-tab]').forEach(tab=>tab.disabled=Boolean(active));
+  for (const option of picker.children) option.disabled = Boolean(active);
+  $('instrument-play').disabled = $('instrument-measure').disabled = Boolean(active);
 }
 
+// Seek over RIFF chunks using their headers; the PCM payload stays on disk until capture.
+const wavInfo = new WeakMap();
+async function readWavInfo(file) {
+  if (!/\.wav$/i.test(file.name)) return null;
+  const id = bytes => String.fromCharCode(...bytes);
+  const head=new Uint8Array(await file.slice(0,12).arrayBuffer());
+  if(id(head.slice(0,4))!=='RIFF'||id(head.slice(8,12))!=='WAVE')return null;
+  let format;
+  for(let pos=12, chunks=0;pos+8<=file.size && chunks++<256;){
+    const bytes=new Uint8Array(await file.slice(pos,pos+8).arrayBuffer());
+    const size=new DataView(bytes.buffer).getUint32(4,true), key=id(bytes.slice(0,4));
+    pos+=8;
+    if(size>file.size-pos)return null;
+    if(key==='fmt ' && size>=16 && size<=128){
+      format=new Uint8Array(await file.slice(pos,pos+size).arrayBuffer());
+    } else if(key==='data' && format){
+      const v=new DataView(format.buffer), codec=v.getUint16(0,true), rate=v.getUint32(4,true), block=v.getUint16(12,true);
+      if(![1,3,65534].includes(codec)||!rate||!block)return null;
+      return {format,rate,block,pos,size,duration:Math.floor(size/block)/rate};
+    }
+    pos+=size+(size%2);
+  }
+  return null;
+}
+async function decodeExcerpt(context,file,offset){
+  const info=wavInfo.get(file) || await readWavInfo(file);
+  if(!info)return {buffer:await context.decodeAudioData(await file.arrayBuffer()),offset};
+  const {format,rate,block,pos,size}=info;
+  const start=Math.min(size,Math.floor(offset*rate)*block);
+  const length=Math.min(size-start,rate*12*block);
+  if(length<rate*block)throw Error('Choose a start time with at least one second remaining.');
+  const header=new ArrayBuffer(28+format.length),v=new DataView(header),bytes=new Uint8Array(header);
+  const tag=(i,text)=>bytes.set([...text].map(c=>c.charCodeAt(0)),i);
+  tag(0,'RIFF');v.setUint32(4,header.byteLength+length-8,true);tag(8,'WAVE');tag(12,'fmt ');
+  v.setUint32(16,format.length,true);bytes.set(format,20);tag(20+format.length,'data');v.setUint32(24+format.length,length,true);
+  return {buffer:await context.decodeAudioData(await new Blob([header,file.slice(pos+start,pos+start+length)]).arrayBuffer()),offset:0};
+}
 async function capture(file, offset, signal, instrument) {
   if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext) {
     throw new Error('Open the analyzer over HTTPS or localhost in a browser with microphone access.');
@@ -229,8 +339,9 @@ async function capture(file, offset, signal, instrument) {
     let originals = [testSweep];
     if (comparing) {
       status.textContent = instrument ? 'Preparing reference…' : 'Opening track…';
-      const decoded = instrument ? referenceBuffer(context, instrument) : await context.decodeAudioData(await file.arrayBuffer());
-      const start = Math.round(offset * rate);
+      const excerpt = instrument ? {buffer: referenceBuffer(context, instrument),offset:0} : await decodeExcerpt(context,file,offset);
+      const decoded=excerpt.buffer;
+      const start = Math.round(excerpt.offset * rate);
       const end = Math.min(decoded.length, start + 12 * rate);
       if (end - start < rate) throw new Error('Choose a start time with at least one second of audio remaining.');
       originals = Array.from({ length: Math.min(2, decoded.numberOfChannels) }, (_, i) => {
@@ -332,10 +443,11 @@ function draw(canvas, series, spectrum = false, focusRange) {
   const width = canvas.clientWidth, height = canvas.clientHeight;
   if (!width || !height) return;
   const scale = window.devicePixelRatio || 1;
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
+  if (canvas.width !== Math.round(width*scale)) canvas.width = Math.round(width*scale);
+  if (canvas.height !== Math.round(height*scale)) canvas.height = Math.round(height*scale);
   const ctx = canvas.getContext('2d');
-  ctx.scale(scale, scale);
+  ctx.setTransform(scale,0,0,scale,0,0);
+  ctx.clearRect(0,0,width,height);
   const left = 38, top = 12, right = width - 14, bottom = height - 30;
   const x = hz => left + Math.log10(hz / 20) / 3 * (right - left);
   const extent = Math.max(12, ...series.flatMap(line => line.points.map(point => Math.abs(point.db ?? 0))));
@@ -400,127 +512,76 @@ function makeAnalyser(context, input, channels = 1) {
 }
 
 function showCapture({ context, begins, micSpectrum, sourceSpectrum, file, instrument, contentStart, duration, previewTrack }) {
-  const panel = $('live');
-  const legend = $('live-legend');
-  const delta = $('live-delta');
-  const deltaLabel = $('live-delta-label');
   const progress = $('live-progress');
-  const noise = frequencies.map(() => 0);
-  const trace = (values, color) => ({
-    color, points: frequencies.map((hz, i) => ({
-      hz, db: values[i] === null ? null : Math.max(-105, 10 * Math.log10(values[i]))
-    }))
-  });
-  let count = 0, phase, frame, lastFrame = -1, lastPreview = 0;
-  delta.hidden = deltaLabel.hidden = true;
-  $('live-title').textContent = instrument ? instrument.name + ' · cabin measurement' : file ? 'Track capture' : 'Sweep measurement';
-  progress.value = 0;
-  panel.hidden = false;
-  panel.scrollIntoView({ block: 'start' });
-
-  function setPhase(next, text, entries) {
-    if (phase === next) return;
-    phase = next;
-    $('live-phase').textContent = text;
-    legend.replaceChildren(...entries.map(([label, color]) => {
-      const item = document.createElement('span');
-      item.style.setProperty('--trace', color);
-      item.textContent = label;
-      return item;
-    }));
-  }
-
+  const noise = frequencies.map(()=>0);
+  let samples=0, frame, last=-1, lastPreview=0;
   function update() {
-    frame = requestAnimationFrame(update);
-    const elapsed = context.currentTime - begins;
-    if (elapsed - lastFrame < .065) return;
-    lastFrame = elapsed;
-    const raw = micSpectrum();
-    const filtered = raw.map((value, i) => value === null ? null : subtractNoise(value, noise[i], 10) ?? 0);
-    progress.value = Math.min(1, Math.max(0, elapsed / (contentStart + duration)));
-    if (elapsed < noiseEnd) {
-      setPhase('noise', 'Measuring the cabin noise floor. Keep the cabin quiet.', [['Microphone', rawColor], ['Noise floor', noiseColor]]);
-      if (elapsed >= noiseStart) {
-        count++;
-        raw.forEach((value, i) => { noise[i] += ((value ?? 0) - noise[i]) / count; });
-      }
-      draw($('live-chart'), [trace(raw, rawColor), trace(noise, noiseColor)], true);
-    } else if (elapsed < filterEnd) {
-      setPhase('filter', 'Noise floor captured. Attenuating noise-dominated bands.', [['Noise floor', noiseColor], ['Filtered', accent]]);
-      draw($('live-chart'), [trace(noise, noiseColor), trace(filtered, accent)], true);
-    } else if (elapsed < contentStart) {
-      setPhase('sync', 'Playing the synchronization signal.', [['Reference', referenceColor], ['Microphone', rawColor], ['Filtered', accent]]);
-      draw($('live-chart'), [trace(sourceSpectrum(), referenceColor), trace(raw, rawColor), trace(filtered, accent)], true);
-    } else if (elapsed <= contentStart + duration + .45) {
-      setPhase('playing', file ? 'Comparing playback with the microphone signal.' : 'Sweeping from low to high frequencies.',
-        [['Reference', referenceColor], ['Microphone', rawColor], ['Filtered', accent]]);
-      draw($('live-chart'), [trace(sourceSpectrum(), referenceColor), trace(raw, rawColor), trace(filtered, accent)], true);
-      if (file && elapsed - contentStart >= .8 && elapsed - lastPreview > 1.05) {
-        lastPreview = elapsed;
-        const estimate = previewTrack();
-        if (estimate) {
-          delta.hidden = deltaLabel.hidden = false;
-          draw(delta, [{ points: estimate, color: accent }]);
-        }
-      }
-    } else {
-      setPhase('finishing', 'Finishing capture and calculating deviations.',
-        [['Reference', referenceColor], ['Microphone', rawColor], ['Filtered', accent]]);
+    frame=requestAnimationFrame(update);
+    const elapsed=context.currentTime-begins;
+    if(elapsed-last<.085)return;
+    last=elapsed;
+    const raw=micSpectrum(), source=referencePoints(sourceSpectrum());
+    if(elapsed>=noiseStart && elapsed<noiseEnd){
+      samples++;
+      raw.forEach((v,i)=>{noise[i]+=((v||0)-noise[i])/samples;});
+    }
+    microphoneTrace=referencePoints(elapsed<filterEnd ? raw : raw.map((v,i)=>v===null?null:Math.max(0,v-noise[i])));
+    const lines=[{color:referenceColor,points:source},{color:accent,points:microphoneTrace}];
+    draw($('live-chart'),lines,true);
+    if(instrument)drawReference(source);
+    progress.value=Math.min(1,Math.max(0,elapsed/(contentStart+duration)));
+    $('live-phase').textContent=elapsed<noiseEnd?'Measuring noise floor':elapsed<contentStart?'Synchronizing':elapsed<=contentStart+duration?'Recording · microphone and reference':'Finishing measurement';
+    if(file && elapsed-contentStart>=.8 && elapsed-lastPreview>1.05){
+      lastPreview=elapsed;
+      const estimate=previewTrack();
+      if(estimate){preliminaryResponse=estimate;renderEQ();}
     }
   }
-  status.textContent = '';
-  frame = requestAnimationFrame(update);
-  return () => { cancelAnimationFrame(frame); panel.hidden = true; };
+  frame=requestAnimationFrame(update);
+  return ()=>{
+    cancelAnimationFrame(frame);microphoneTrace=null;preliminaryResponse=null;
+    $('live-phase').textContent='Input spectrum · dBFS';progress.value=0;
+    if(instrument)drawReference();
+    renderEQ();
+  };
 }
 
 const signed = db => `${db > 0 ? '+' : ''}${db} dB`;
 
 function renderEQ() {
-  if (current) renderBandGains(current.response, $("gains"), $("eq-note"));
-  if (instrumentResponse) renderBandGains(instrumentResponse, $("instrument-gains"), $("instrument-note"));
-}
-
-function renderBandGains(response, list, note) {
+  $('baseline').hidden = mode !== 'sweep' || !current;
+  const response = preliminaryResponse || (mode === 'sweep' ? current?.response : mode === 'track' ? track?.response : instrumentResponse);
   const raw = $('bands').value.trim();
-  const centers = [...new Set(raw.split(/[\s,;]+/).map(Number))].sort((a, b) => a - b);
-  list.replaceChildren();
-  if (!raw || centers.length > 32 || centers.some(hz => !Number.isInteger(hz) || hz < 20 || hz > 20000)) {
-    note.textContent = 'Enter up to 32 whole-number frequencies from 20 to 20,000 Hz, separated by commas or spaces.';
-    return;
-  }
-  note.textContent = 'Adjustments target a flat relative response and are rounded to the nearest decibel.';
-  for (const { hz, gain } of eqSettings(response, centers)) {
-    const item = document.createElement('li');
-    const value = document.createElement('strong');
-    item.textContent = `${hz} Hz`;
-    value.textContent = gain === null ? 'Low signal' : signed(gain);
-    item.append(value);
-    list.append(item);
-  }
+  const centers = [...new Set(raw.split(/[\s,;]+/).map(Number))].sort((a,b)=>a-b);
+  const valid = raw && centers.length <= 32 && centers.every(h=>Number.isInteger(h)&&h>=20&&h<=20000);
+  const gains = valid ? eqSettings(response || [], centers) : [];
+  $('gains').replaceChildren(...gains.map(({hz,gain})=>{
+    const li=document.createElement('li'), value=document.createElement('strong');
+    li.textContent=hz+' Hz';value.textContent=gain===null?(response?'Low signal':'—'):signed(gain);
+    value.className=gain<0?'cut':gain>0?'boost':'neutral';li.append(value);return li;
+  }));
+  $('eq-note').textContent=valid ? (response?'Adjustments rounded to 1 dB.':'Run a measurement to calculate adjustments.') : 'Enter up to 32 whole-number frequencies from 20 to 20,000 Hz.';
+  $('legend').textContent=mode.toUpperCase()+' · '+(response?'Recommended gain (dB)':'Awaiting measurement');
+  const series=[];
+  if(mode==='sweep' && before && valid) series.push({color:beforeColor,points:eqSettings(before.response,centers).map(v=>({hz:v.hz,db:v.gain}))});
+  if(response) series.push({color:accent,points:gains.map(v=>({hz:v.hz,db:v.gain}))});
+  draw($('chart'),series);
+  $('quality').textContent=mode==='sweep' && before?'Blue: current · Red: saved baseline':'';
 }
-
-function renderCharts() {
-  if (current) draw($('chart'), [
-    ...(before ? [{ points: before.response, color: beforeColor }] : []),
-    { points: current.response, color: accent }
-  ]);
-  if (track) draw($('track-chart'), [{ points: track.response, color: accent }]);
-}
-
-function renderMeasure() {
-  $('result').hidden = false;
-  $('legend').textContent = before ? 'Blue: current · Red: baseline · dB / Hz' : 'Current measurement · dB / Hz';
-  $('quality').textContent = [
-    current.response.some(p => p.db === null) ? 'Gaps indicate low signal or frequencies outside the recorded range.' : '',
-    !current.processingVerified ? 'The browser could not verify that all microphone processing was disabled.' : '',
-    'The response includes the effect of the phone microphone.'
-  ].filter(Boolean).join(' ');
-  renderCharts();
+function renderCharts(){renderEQ();}
+function renderMeasure(){renderEQ();}
+for(const tab of document.querySelectorAll('[data-tab]')) tab.onclick=()=>{
+  if(active)return;
+  stopPreview();mode=tab.dataset.tab;
+  document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b===tab)));
+  document.querySelectorAll('[data-mode]').forEach(p=>p.hidden=p.dataset.mode!==mode);
+  if(mode==='instrument'){if(referenceTrace)drawReference();else refreshReference();}
   renderEQ();
-}
-
+};
 async function run(file, instrument = null) {
   if (active) return;
+  const resumeMonitor = Boolean(monitor);
+  stopMonitor();
   stopPreview();
   const offset = instrument ? 0 : $('offset').valueAsNumber;
   if (file && (!Number.isFinite(offset) || offset < 0)) {
@@ -528,17 +589,18 @@ async function run(file, instrument = null) {
     return;
   }
   active = new AbortController();
+  micUI();
   updateButtons();
   status.textContent = 'Preparing capture…';
   try {
     const result = await capture(file, offset, active.signal, instrument);
     if (instrument) {
       instrumentResponse = result.response;
-      $('instrument-result').hidden = false;
+
       renderEQ();
     } else if (file) {
       track = result;
-      $('track-result').hidden = false;
+
       const valid = result.response.filter(p => p.db !== null);
       const high = valid.reduce((a, b) => a.db > b.db ? a : b);
       const low = valid.reduce((a, b) => a.db < b.db ? a : b);
@@ -551,7 +613,7 @@ async function run(file, instrument = null) {
       renderMeasure();
     }
     status.textContent = '';
-    $(instrument ? 'instrument-result' : file ? 'track-result' : 'result').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    renderEQ();
   } catch (error) {
     status.textContent = active.signal.aborted ? 'Recording stopped.'
       : error.name === 'NotAllowedError' ? 'Allow microphone access in the site settings.'
@@ -559,6 +621,9 @@ async function run(file, instrument = null) {
       : error.message;
   } finally {
     active = null;
+    micUI();
+    draw($('live-chart'), [], true);
+    if(resumeMonitor && !analyzer.hidden) startMonitor();
     updateButtons();
   }
 }
@@ -571,12 +636,53 @@ $('baseline').onclick = () => {
 };
 $('track').onchange = () => {
   track = null;
+  loadDuration();
   $('track-name').textContent = $('track').files[0]?.name || 'Choose audio file';
-  $('track-result').hidden = true;
+  $('track-summary').textContent = '';
+  renderEQ();
   updateButtons();
 };
-$('offset-down').onclick = () => $('offset').stepDown();
-$('offset-up').onclick = () => $('offset').stepUp();
+let duration = 0;
+function updateExcerpt() {
+  const start = Number($('offset').value);
+  const time = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  $('excerpt').textContent = duration ? time(start) + ' – ' + time(Math.min(duration, start + 12)) : 'Choose a track';
+}
+let releaseMetadata;
+async function loadDuration() {
+  releaseMetadata?.();
+  const file = $('track').files[0];
+  duration = 0;
+  $('offset').value = $('offset').max = 0;
+  updateExcerpt();
+  if (!file) return;
+  const info = await readWavInfo(file).catch(()=>null);
+  if ($('track').files[0] !== file) return;
+  if (info) {
+    wavInfo.set(file,info);duration=info.duration;
+    $('offset').max=Math.max(0,Math.floor((duration-1)*10)/10);
+    updateExcerpt();updateButtons();return;
+  }
+  const audio = new Audio();
+  const url = URL.createObjectURL(file);
+  audio.preload = 'metadata';
+  releaseMetadata = () => {
+    audio.onloadedmetadata = audio.onerror = null;
+    audio.removeAttribute('src'); audio.load(); URL.revokeObjectURL(url); releaseMetadata = null;
+  };
+  audio.onloadedmetadata = audio.onerror = () => {
+    if ($('track').files[0] === file && Number.isFinite(audio.duration)) {
+      duration = audio.duration;
+      $('offset').max = Math.max(0, Math.floor((duration - 1) * 10) / 10);
+      updateExcerpt();
+      updateButtons();
+    }
+    if (!duration) $('excerpt').textContent='Duration unavailable · starts at 0:00';
+    releaseMetadata();
+  };
+  audio.src = url;
+}
+$('offset').oninput = updateExcerpt;
 $('compare').onclick = () => run($('track').files[0]);
 $('stop').onclick = () => active?.abort();
 $('bands').oninput = renderEQ;
@@ -594,7 +700,20 @@ const instruments = [
 ];
 let preview, referenceTrace, instrumentResponse;
 const picker = $('instrument');
-picker.replaceChildren(...instruments.map((item, i) => new Option(item.name, i)));
+let selectedInstrument = 0;
+instruments.forEach((item, i) => {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = item.name;
+  button.setAttribute('aria-pressed', String(i === 0));
+  button.onclick = () => {
+    if (active) return;
+    selectedInstrument = i;
+    for (const option of picker.children) option.setAttribute('aria-pressed', String(option === button));
+    changeInstrument();
+  };
+  picker.append(button);
+});
 
 function referenceSamples(item, rate) {
   const samples = new Float32Array(Math.round(rate * item.beat * 8));
@@ -645,13 +764,16 @@ function referencePoints(power, scale = 1) {
 }
 
 function drawReference(points = referenceTrace) {
-  if (!analyzer.hidden && points) draw($('instrument-chart'), [{ points, color: accent }], true, instruments[picker.value].range);
+  if (analyzer.hidden || mode !== 'instrument' || !points) return;
+  const series=[{points,color:referenceColor}];
+  if(microphoneTrace) series.push({points:microphoneTrace,color:accent});
+  draw($('instrument-chart'),series,true,instruments[selectedInstrument].range);
 }
 
 function refreshReference() {
-  const item = instruments[picker.value];
+  const item = instruments[selectedInstrument];
   $('instrument-range').textContent = item.feature + ' · ' + item.range.join('–') + ' Hz';
-  $('instrument-caption').textContent = 'Reference spectrum · dBFS / Hz';
+  $('instrument-caption').textContent = 'Reference · enable microphone for live overlay';
   const samples = referenceSamples(item, 44100);
   referenceTrace = referencePoints(welch([samples.subarray(0, Math.round(44100 * item.beat * 2))], 44100), 4 / 4096 ** 2);
   drawReference();
@@ -666,7 +788,7 @@ function stopPreview() {
   context.close();
   $('instrument-play').textContent = 'Play reference';
   $('instrument-play').setAttribute('aria-pressed', 'false');
-  $('instrument-caption').textContent = 'Reference spectrum · dBFS / Hz';
+  $('instrument-caption').textContent = 'Reference · enable microphone for live overlay';
   drawReference();
 }
 
@@ -676,7 +798,7 @@ $('instrument-play').onclick = async () => {
   const context = new AudioContext();
   const source = context.createBufferSource();
   const session = { context, source, frame: 0 };
-  source.buffer = referenceBuffer(context, instruments[picker.value]);
+  source.buffer = referenceBuffer(context, instruments[selectedInstrument]);
   source.loop = true;
   const output = context.createGain();
   output.gain.value = .4;
@@ -691,7 +813,7 @@ $('instrument-play').onclick = async () => {
     return;
   }
   if (preview !== session) return;
-  $('instrument-caption').textContent = 'Live reference · dBFS / Hz';
+  $('instrument-caption').textContent = 'Reference (violet) · microphone (blue)';
   let last = -100;
   function frame(now) {
     if (preview !== session) return;
@@ -701,14 +823,14 @@ $('instrument-play').onclick = async () => {
   frame(performance.now());
 };
 
-picker.onchange = () => {
+function changeInstrument() {
   stopPreview();
   instrumentResponse = null;
-  $('instrument-result').hidden = true;
+  renderEQ();
   refreshReference();
 };
 $('instrument-measure').onclick = () => {
-  const item = instruments[picker.value];
+  const item = instruments[selectedInstrument];
   run(null, item);
 };
 window.addEventListener('pagehide', stopPreview);
@@ -728,11 +850,11 @@ function selectProject() {
     if ((link.hash === '#spectrum') === audio) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
-  if (!audio) { stopPreview(); active?.abort(); }
+  if (!audio) { stopPreview(); stopMonitor(); active?.abort(); }
   if (changed) {
     positionShiftOverview();
     document.title = audio ? 'Spectrum analyzer — Artem Borisenko' : 'Artem Borisenko — Manufacturing ERP';
-    if (audio) { renderCharts(); if (referenceTrace) drawReference(); else refreshReference(); }
+    if (audio) { renderEQ(); draw($('live-chart'),[],true); if(mode==='instrument') refreshReference(); }
     window.scrollTo(0, 0);
   }
   if (location.hash === '#spectrum-profile') $('profile').scrollIntoView();

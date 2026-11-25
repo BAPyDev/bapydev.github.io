@@ -1,7 +1,7 @@
 "use strict";
 
 const cachePrefix = "erp-portfolio:" + self.registration.scope + ":";
-const cacheName = cachePrefix + "v11";
+const cacheName = cachePrefix + "v14";
 const assets = [
   "index.html", "style.css", "app.js", "production.js", "app.webmanifest",
   "spectrum/analyzer.js", "spectrum/capture.js", "portrait.jpg", "workshop.jpg", "lights-off.svg", "filaments.svg",

@@ -73,25 +73,25 @@
 <section id="spectrum" class="workspace analyzer" aria-labelledby="spectrum-title" hidden>
 <header class="section-head"><div><p class="label">CAR AUDIO</p><h2 id="spectrum-title">Spectrum analyzer</h2></div></header>
 <div class="console analyzer-console">
-<section class="panel"><h3>Cabin measurement</h3>
+<section class="panel input-panel"><div class="mic-row"><button type="button" id="monitor" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4m-4 0h8"/><path class="mic-slash" d="M3 3l18 18"/></svg><strong>Microphone</strong><span id="mic-state">Off</span></button><canvas id="live-chart" role="img" aria-label="Live microphone spectrum in dBFS"></canvas></div><div class="audio-actions"><button id="noise-cut" disabled>Filter noise</button><span id="noise-state"></span></div><section id="live"><p id="live-phase">Input spectrum · dBFS</p>
+<progress id="live-progress" value="0" max="1" aria-label="Recording progress"></progress><p class="legend"><span style="--trace:#78adff">Microphone</span><span style="--trace:#a6acff">Reference</span></p>
+
+</section>
+</section>
+<section class="panel"><nav id="audio-modes" aria-label="Measurement mode"><button data-tab="sweep" aria-pressed="true">Sweep</button><button data-tab="instrument" aria-pressed="false">Instrument</button><button data-tab="track" aria-pressed="false">Track</button></nav><section id="sweep-mode" data-mode="sweep"><h3>Cabin measurement</h3>
 <p>Connect your phone to the head unit, set a moderate volume and hold the microphone at the driver’s ear level. Start with a flat EQ and keep the cabin quiet while the noise floor is measured.</p>
 <div class="audio-actions"><button id="measure" type="button">Run sweep · 20 Hz–20 kHz</button></div></section>
-<section class="panel" id="live" hidden><h3 id="live-title">Live capture</h3><p id="live-phase"></p>
-<progress id="live-progress" value="0" max="1" aria-label="Recording progress"></progress><p id="live-legend" class="legend"></p>
-<canvas id="live-chart" role="img" aria-label="Live signal spectrum in dBFS by frequency"></canvas>
-<p id="live-delta-label" hidden>Preliminary deviations · dB / Hz</p><canvas id="live-delta" role="img" aria-label="Preliminary track deviations by frequency" hidden></canvas></section>
-<section class="panel" id="result" hidden><h3>Frequency response</h3><p id="legend"></p><canvas id="chart" role="img" aria-label="Frequency response in decibels by frequency"></canvas><p id="quality"></p>
-<h4>Equalizer adjustments</h4><label for="bands">Head unit band centers (Hz)</label><div class="audio-control band-control"><span aria-hidden="true">Hz</span><textarea id="bands" rows="2" spellcheck="false">32, 64, 125, 160, 250, 315, 500, 630, 800, 1000, 1250, 1600, 2500, 3150, 5000, 6300, 8000, 10000, 12500, 16000</textarea></div><p id="eq-note"></p><ul id="gains" class="eq-gains" aria-label="Gain adjustments by band"></ul><button id="baseline" class="audio-secondary">Save baseline</button></section>
-<section class="panel instrument-panel" id="instrument-lab"><h3>Instrument spectrum</h3>
+<section class="panel instrument-panel" id="instrument-lab" data-mode="instrument" hidden><h3>Instrument spectrum</h3>
 <p>Choose a synthesized reference. Listen to its spectrum, or measure it through your speakers for EQ adjustments.</p>
-<div class="instrument-layout"><div><label for="instrument">Sound</label><select id="instrument"></select>
+<div class="instrument-layout"><div><div id="instrument" role="group" aria-label="Reference sounds"></div>
 <p id="instrument-range"></p><div class="audio-actions"><button id="instrument-play" type="button">Play reference</button><button id="instrument-measure" type="button" class="audio-secondary">Measure in cabin</button></div></div>
 <div><p id="instrument-caption"></p><canvas id="instrument-chart" role="img" aria-label="Instrument spectrum with its focus range highlighted"></canvas></div></div>
-<div id="instrument-result" hidden><h4>Measured EQ adjustments</h4><p id="instrument-note"></p><ul id="instrument-gains" class="eq-gains" aria-label="Measured instrument EQ adjustments"></ul></div></section>
-<section class="panel"><h3>Track comparison</h3><div class="audio-fields"><div><label for="track">Reference track · MP3 or WAV</label><div class="audio-control track-control"><span class="track-symbol" aria-hidden="true">♪</span><span id="track-name">Choose audio file</span><span aria-hidden="true">↗</span><input id="track" type="file" accept="audio/*,.mp3,.wav"></div></div>
-<div><label for="offset">Start time (seconds)</label><div class="audio-control time-control"><button type="button" id="offset-down" aria-label="Decrease start time by one second">−</button><input id="offset" type="number" min="0" step="1" value="0"><button type="button" id="offset-up" aria-label="Increase start time by one second">+</button></div></div></div>
-<button id="compare" disabled>Record and compare up to 12 seconds</button><div id="track-result" hidden><p>Difference from the reference after noise subtraction and level matching.</p><canvas id="track-chart" role="img" aria-label="Track level differences by frequency"></canvas><p id="track-summary"></p></div></section>
-<div id="activity"><p id="status" role="status"></p><button id="stop" class="audio-secondary" hidden>Stop recording</button></div></div>
+</section><section id="track-mode" data-mode="track" hidden><h3>Track comparison</h3><div class="audio-fields"><div><label for="track">Reference track · MP3 or WAV</label><div class="audio-control track-control"><span class="track-symbol" aria-hidden="true">♪</span><span id="track-name">Choose audio file</span><span aria-hidden="true">↗</span><input id="track" type="file" accept="audio/*,.mp3,.wav"></div></div>
+<div><label for="offset">Track excerpt · <output id="excerpt">Choose a track</output></label><input id="offset" type="range" min="0" max="0" step="0.1" value="0" disabled></div></div>
+<button id="compare" disabled>Record and compare up to 12 seconds</button><p id="track-summary"></p></section>
+</section>
+<div id="activity"><p id="status" role="status"></p><button id="stop" class="audio-secondary" hidden>Stop recording</button></div><section class="panel" id="result"><h3>EQ correction curve</h3><p id="legend"></p><canvas id="chart" role="img" aria-label="Recommended gain by frequency in decibels"></canvas><p id="quality"></p><button id="baseline" class="audio-secondary" hidden>Save baseline</button>
+</section><section class="panel"><h3>Equalizer adjustments</h3><label for="bands">Head unit band centers (Hz)</label><div class="audio-control band-control"><span aria-hidden="true">Hz</span><textarea id="bands" rows="2" spellcheck="false">32, 64, 125, 160, 250, 315, 500, 630, 800, 1000, 1250, 1600, 2500, 3150, 5000, 6300, 8000, 10000, 12500, 16000</textarea></div><p id="eq-note"></p><ul id="gains" class="eq-gains" aria-label="Gain adjustments by band"></ul></section></div>
 <footer>Audio is processed on this device.</footer></section>
 </main>
 <div id="dashboard-tip" role="tooltip" hidden></div>
